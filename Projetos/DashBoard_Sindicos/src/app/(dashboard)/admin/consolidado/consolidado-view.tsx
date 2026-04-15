@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
+import { cn } from "@/lib/utils";
 
 interface CondominioRanking {
   id: string;
@@ -53,8 +54,8 @@ export function ConsolidadoView() {
     <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-minimerx-navy">Visão Geral</h1>
-          <p className="mt-1 text-sm text-minimerx-gray">
+          <h1 className="text-3xl font-bold text-minimerx-navy">Visão Geral</h1>
+          <p className="mt-1 text-sm text-slate-500">
             Resumo consolidado de todos os condomínios.
           </p>
         </div>
@@ -129,8 +130,18 @@ export function ConsolidadoView() {
                 ) : (
                   data?.condominios.map((c, idx) => (
                     <TableRow key={c.id}>
-                      <TableCell className="text-center text-sm font-medium text-minimerx-gray">
-                        {idx + 1}
+                      <TableCell className="text-center">
+                        <span
+                          className={cn(
+                            "inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold",
+                            idx === 0 && "bg-yellow-100 text-yellow-700",
+                            idx === 1 && "bg-slate-200 text-slate-600",
+                            idx === 2 && "bg-orange-100 text-orange-700",
+                            idx > 2 && "bg-slate-100 text-slate-400",
+                          )}
+                        >
+                          {idx + 1}
+                        </span>
                       </TableCell>
                       <TableCell className="font-medium text-minimerx-navy">
                         {c.nome}
