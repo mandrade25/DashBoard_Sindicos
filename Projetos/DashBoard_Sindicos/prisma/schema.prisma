@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Condominio {
+  id                String    @id @default(cuid())
+  nome              String    @unique
+  percentualRepasse Decimal   @db.Decimal(5, 2)
+  criadoEm          DateTime  @default(now())
+  usuarios          Usuario[]
+  vendas            Venda[]
+}
+
+model Usuario {
+  id           String      @id @default(cuid())
+  nome         String
+  email        String      @unique
+  senhaHash    String
+  role         Role        @default(SINDICO)
+  condominioId String?
+  criadoEm     DateTime    @default(now())
+  condominio   Condominio? @relation(fields: [condominioId], references: [id])
+}
+
+model Venda {
+  id           String     @id @default(cuid())
+  condominioId String
+  unidade      String
+  data         DateTime   @db.Date
+  valorVenda   Decimal    @db.Decimal(10, 2)
+  importadoEm  DateTime   @default(now())
+  condominio   Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+
+  @@index([condominioId, data])
+}
+
+enum Role {
+  ADMIN
+  SINDICO
+}
