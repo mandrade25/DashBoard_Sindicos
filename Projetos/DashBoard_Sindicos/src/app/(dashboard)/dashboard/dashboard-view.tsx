@@ -147,7 +147,7 @@ export function DashboardView({ role, condominioIdInicial, condominios }: Dashbo
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <MetricCard
                 label="Vendas de hoje"
                 value={formatCurrency(resumo?.hoje ?? 0)}
@@ -174,7 +174,7 @@ export function DashboardView({ role, condominioIdInicial, condominios }: Dashbo
               />
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <MetricCard
                 label="Repasse do mês"
                 value={formatCurrency(resumo?.repasseMes ?? 0)}
@@ -207,7 +207,7 @@ export function DashboardView({ role, condominioIdInicial, condominios }: Dashbo
               </Tabs>
             </div>
 
-            <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
               <SalesChart
                 data={vendas?.chart ?? []}
                 period={period}
