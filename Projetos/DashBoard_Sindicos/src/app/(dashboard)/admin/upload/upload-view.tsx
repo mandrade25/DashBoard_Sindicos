@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { AlertCircle, CheckCircle2, Upload as UploadIcon } from "lucide-react";
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload as UploadIcon, X } from "lucide-react";
 import { Topbar } from "@/components/Topbar";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +18,11 @@ export function UploadView() {
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<UploadResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function clearFile() {
+    setFile(null);
+    if (inputRef.current) inputRef.current.value = "";
+  }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     setFile(e.target.files?.[0] ?? null);
@@ -51,8 +56,7 @@ export function UploadView() {
       }
       const data: UploadResponse = await res.json();
       setResult(data);
-      setFile(null);
-      if (inputRef.current) inputRef.current.value = "";
+      clearFile();
     });
   }
 
@@ -60,30 +64,26 @@ export function UploadView() {
     <>
       <Topbar role="ADMIN" condominioNome="Upload de Vendas" />
 
-      <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-6">
-        <h1 className="text-2xl font-bold text-minimerx-navy">Upload de planilha de vendas</h1>
-        <p className="mt-1 text-sm text-minimerx-gray">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6 sm:px-6">
+        <h1 className="text-3xl font-bold text-minimerx-navy">Upload de planilha de vendas</h1>
+        <p className="mt-1 text-sm text-slate-500">
           Formato aceito: .xls ou .xlsx com colunas <strong>Unidade</strong>,{" "}
           <strong>Data</strong> (dd/mm/aaaa) e <strong>Vl Venda</strong>.
         </p>
 
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-8">
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
           <label
             htmlFor="file"
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
-            className="flex cursor-pointer flex-col items-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-minimerx-light/50 px-6 py-12 text-center transition-colors hover:border-minimerx-green hover:bg-minimerx-light"
+            className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50/50 px-6 py-16 text-center transition-colors hover:border-minimerx-green hover:bg-slate-50"
           >
-            <UploadIcon className="h-10 w-10 text-minimerx-blue" />
+            <UploadIcon className="h-12 w-12 text-minimerx-blue" />
             <div>
-              <p className="text-sm font-semibold text-minimerx-navy">
-                {file ? file.name : "Clique ou arraste o arquivo .xls aqui"}
+              <p className="text-base font-semibold text-minimerx-navy">
+                Clique ou arraste o arquivo .xls aqui
               </p>
-              <p className="text-xs text-minimerx-gray">
-                {file
-                  ? `${(file.size / 1024).toFixed(1)} KB`
-                  : "Apenas uma planilha por vez"}
-              </p>
+              <p className="mt-1 text-sm text-minimerx-gray">Apenas uma planilha por vez</p>
             </div>
             <input
               ref={inputRef}
@@ -95,11 +95,42 @@ export function UploadView() {
             />
           </label>
 
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { setFile(null); setResult(null); setError(null); if(inputRef.current) inputRef.current.value=""; }}>
+          {/* Badge do arquivo selecionado */}
+          {file ? (
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+              <FileSpreadsheet className="h-5 w-5 flex-shrink-0 text-minimerx-green" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-green-800">{file.name}</p>
+                <p className="text-xs text-green-600">{(file.size / 1024).toFixed(1)} KB</p>
+              </div>
+              <button
+                type="button"
+                onClick={clearFile}
+                className="rounded-full p-1 text-green-600 hover:bg-green-200"
+                aria-label="Remover arquivo"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button
+              variant="outline"
+              className="sm:w-auto"
+              onClick={() => {
+                clearFile();
+                setResult(null);
+                setError(null);
+              }}
+            >
               Limpar
             </Button>
-            <Button disabled={!file || pending} onClick={onSubmit}>
+            <Button
+              disabled={!file || pending}
+              onClick={onSubmit}
+              className="w-full sm:w-auto"
+            >
               {pending ? "Processando..." : "Importar vendas"}
             </Button>
           </div>
@@ -114,20 +145,20 @@ export function UploadView() {
 
         {result ? (
           <div className="mt-6 space-y-4">
-            <div className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+            <div className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-5 text-sm text-green-800">
               <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-minimerx-green" />
               <div>
-                <p className="font-semibold">
+                <p className="text-base font-semibold">
                   {result.importados} venda(s) importada(s) com sucesso
                 </p>
                 {result.ignorados > 0 ? (
-                  <p>{result.ignorados} linha(s) ignorada(s).</p>
+                  <p className="mt-1">{result.ignorados} linha(s) ignorada(s).</p>
                 ) : null}
               </div>
             </div>
 
             {result.condominiosNaoEncontrados.length > 0 ? (
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
                 <p className="font-semibold">Condomínios não encontrados no cadastro:</p>
                 <ul className="mt-2 list-disc pl-5">
                   {result.condominiosNaoEncontrados.map((c) => (
@@ -135,13 +166,14 @@ export function UploadView() {
                   ))}
                 </ul>
                 <p className="mt-2 text-xs">
-                  Cadastre esses condomínios (com nome idêntico ao da planilha) e refaça o upload.
+                  Cadastre esses condomínios (com nome idêntico ao da planilha) e refaça o
+                  upload.
                 </p>
               </div>
             ) : null}
 
             {result.erros.length > 0 ? (
-              <div className="rounded-lg border border-slate-200 bg-white p-4 text-sm">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm">
                 <p className="mb-2 font-semibold text-minimerx-navy">
                   Erros ({result.erros.length})
                 </p>
