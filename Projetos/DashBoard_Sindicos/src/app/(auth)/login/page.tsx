@@ -3,15 +3,16 @@ import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-minimerx-light px-4">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-[#1E2A5A] px-4">
+      <div className="w-full max-w-[420px] rounded-2xl bg-white p-10 shadow-2xl max-sm:p-6">
         <div className="mb-8 flex justify-center">
           <Image
             src="/logo-modelo1.svg"
             alt="MiniMerX Market by LAVAX"
-            width={240}
-            height={120}
+            width={200}
+            height={80}
             priority
+            style={{ height: "auto" }}
           />
         </div>
         <h1 className="mb-1 text-center text-2xl font-bold text-minimerx-navy">
