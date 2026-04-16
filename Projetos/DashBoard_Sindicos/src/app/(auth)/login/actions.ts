@@ -5,9 +5,9 @@ import { AuthError } from "next-auth"
 import { redirect } from "next/navigation"
 
 export async function authenticate(
-  prevState: string | undefined,
+  prevState: string | null,
   formData: FormData
-) {
+): Promise<string | null> {
   try {
     await signIn("credentials", {
       email: formData.get("email"),
@@ -16,12 +16,7 @@ export async function authenticate(
     })
   } catch (error) {
     if (error instanceof AuthError) {
-      switch (error.type) {
-        case "CredentialsSignin":
-          return "Credenciais inválidas."
-        default:
-          return "Algo deu errado."
-      }
+      return "E-mail ou senha inválidos."
     }
     throw error
   }
