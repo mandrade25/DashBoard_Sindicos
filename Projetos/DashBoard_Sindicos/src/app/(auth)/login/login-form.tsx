@@ -1,14 +1,28 @@
 "use client";
 
-import { useActionState } from "react";
+import { useFormState, useFormStatus } from "react-dom";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authenticate } from "./actions";
 
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      className="h-12 w-full text-base font-semibold"
+      disabled={pending}
+    >
+      {pending ? "Entrando..." : "Entrar"}
+    </Button>
+  );
+}
+
 export function LoginForm() {
-  const [error, formAction, pending] = useActionState(authenticate, null);
+  const [error, formAction] = useFormState(authenticate, null);
 
   return (
     <form className="space-y-5" action={formAction}>
@@ -44,13 +58,7 @@ export function LoginForm() {
           <span>{error}</span>
         </div>
       ) : null}
-      <Button
-        type="submit"
-        className="h-12 w-full text-base font-semibold"
-        disabled={pending}
-      >
-        {pending ? "Entrando..." : "Entrar"}
-      </Button>
+      <SubmitButton />
     </form>
   );
 }

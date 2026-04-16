@@ -52,13 +52,16 @@ export async function POST(req: Request) {
   let importados = 0;
   if (paraInserir.length > 0) {
     const result = await prisma.$transaction(async (tx) => {
-      const r = await tx.venda.createMany({ data: paraInserir });
+      const r = await tx.venda.createMany({
+        data: paraInserir,
+        skipDuplicates: true,
+      });
       return r.count;
     });
     importados = result;
   }
 
-  const ignorados = vendas.length - importados + parseErros.length;
+  const ignorados = parseErros.length + naoEncontrados.size + (paraInserir.length - importados);
 
   return NextResponse.json({
     importados,

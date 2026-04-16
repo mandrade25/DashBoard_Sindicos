@@ -1,5 +1,16 @@
 import { prisma } from "@/lib/prisma";
-import { startOfDay, startOfWeek, startOfMonth, startOfYear, addDays, addMonths } from "date-fns";
+import {
+  formatUtcDateKey,
+  formatUtcMonthKey,
+  getUtcMonthBucketKey,
+  getUtcStartOfDay,
+  getUtcStartOfMonth,
+  getUtcStartOfWeek,
+  getUtcStartOfYear,
+  listUtcMonthBucketKeys,
+  listUtcWeekKeys,
+  listUtcYearMonthKeys,
+} from "@/lib/date-buckets";
 
 export async function assertAcessoCondominio(
   userRole: "ADMIN" | "SINDICO",
@@ -17,10 +28,11 @@ export async function getResumo(condominioId: string) {
   });
   if (!condominio) return null;
 
-  const hoje = startOfDay(new Date());
-  const semana = startOfWeek(new Date(), { weekStartsOn: 1 });
-  const mes = startOfMonth(new Date());
-  const ano = startOfYear(new Date());
+  const now = new Date();
+  const hoje = getUtcStartOfDay(now);
+  const semana = getUtcStartOfWeek(now);
+  const mes = getUtcStartOfMonth(now);
+  const ano = getUtcStartOfYear(now);
 
   const [r1, r2, r3, r4] = await Promise.all([
     prisma.venda.aggregate({
@@ -62,10 +74,10 @@ export async function getVendas(condominioId: string, period: "week" | "month" |
   const now = new Date();
   const from =
     period === "week"
-      ? startOfWeek(now, { weekStartsOn: 1 })
+      ? getUtcStartOfWeek(now)
       : period === "month"
-        ? startOfMonth(now)
-        : startOfYear(now);
+        ? getUtcStartOfMonth(now)
+        : getUtcStartOfYear(now);
 
   const vendas = await prisma.venda.findMany({
     where: { condominioId, data: { gte: from } },
@@ -76,58 +88,33 @@ export async function getVendas(condominioId: string, period: "week" | "month" |
   const map = new Map<string, number>();
 
   if (period === "year") {
-    // agrupar por mês: chave = "YYYY-MM-01"
     for (const v of vendas) {
-      const key = v.data.toISOString().substring(0, 7) + "-01";
+      const key = formatUtcMonthKey(v.data);
       map.set(key, (map.get(key) ?? 0) + Number(v.valorVenda));
     }
   } else if (period === "month") {
-    // agrupar por semana do mês: dias 1-7, 8-14, 15-21, 22-28, 29-31
     for (const v of vendas) {
-      const iso = v.data.toISOString(); // "YYYY-MM-DD..." UTC-based
-      const day = parseInt(iso.substring(8, 10), 10);
-      const bucketDay = Math.floor((day - 1) / 7) * 7 + 1;
-      const key = iso.substring(0, 8) + String(bucketDay).padStart(2, "0");
+      const key = getUtcMonthBucketKey(v.data);
       map.set(key, (map.get(key) ?? 0) + Number(v.valorVenda));
     }
   } else {
-    // week: agrupamento diário
     for (const v of vendas) {
-      const key = v.data.toISOString().substring(0, 10);
+      const key = formatUtcDateKey(v.data);
       map.set(key, (map.get(key) ?? 0) + Number(v.valorVenda));
     }
   }
 
-  const dates: string[] = [];
-  if (period === "week") {
-    for (let i = 0; i < 7; i++) {
-      dates.push(addDays(from, i).toISOString().substring(0, 10));
-    }
-  } else if (period === "month") {
-    const yearNum = from.getUTCFullYear();
-    const monthNum = from.getUTCMonth();
-    const lastDay = new Date(Date.UTC(yearNum, monthNum + 1, 0)).getUTCDate();
-    const yearStr = String(yearNum);
-    const monthStr = String(monthNum + 1).padStart(2, "0");
-    for (const bd of [1, 8, 15, 22, 29]) {
-      if (bd <= lastDay) {
-        dates.push(`${yearStr}-${monthStr}-${String(bd).padStart(2, "0")}`);
-      }
-    }
-  } else {
-    // year: 12 meses
-    for (let i = 0; i < 12; i++) {
-      const d = addMonths(startOfYear(now), i);
-      dates.push(d.toISOString().substring(0, 7) + "-01");
-    }
-  }
+  const dates =
+    period === "week"
+      ? listUtcWeekKeys(from)
+      : period === "month"
+        ? listUtcMonthBucketKeys(from)
+        : listUtcYearMonthKeys(getUtcStartOfYear(now));
 
   const chart = dates.map((d) => ({ date: d, value: map.get(d) ?? 0 }));
 
   let acc = 0;
-  const tableDesc = [...chart]
-    .filter((c) => c.value > 0)
-    .reverse();
+  const tableDesc = [...chart].filter((c) => c.value > 0).reverse();
   const accMap = new Map<string, number>();
   for (const c of chart) {
     if (c.value > 0) {
@@ -135,6 +122,7 @@ export async function getVendas(condominioId: string, period: "week" | "month" |
       accMap.set(c.date, acc);
     }
   }
+
   const table = tableDesc.map((c) => ({
     date: c.date,
     value: c.value,
@@ -143,4 +131,3 @@ export async function getVendas(condominioId: string, period: "week" | "month" |
 
   return { chart, table };
 }
-

@@ -37,6 +37,7 @@ model Venda {
   condominio   Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
 
   @@index([condominioId, data])
+  @@unique([condominioId, unidade, data, valorVenda])
 }
 
 enum Role {
