@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Condominio {
+  id                String    @id @default(cuid())
+  nome              String    @unique
+  percentualRepasse Decimal   @db.Decimal(5, 2)
+  dataInicio        DateTime  @default(now()) @db.Date
+  criadoEm          DateTime  @default(now())
+  usuarios          Usuario[]
+  acessosUsuarios   UsuarioCondominio[]
+  vendas            Venda[]
+  emailsNotificacao EmailNotificacao[]
+  comprovantes      Comprovante[]
+  envios            EnvioEmail[]
+}
+
+model Usuario {
+  id           String      @id @default(cuid())
+  nome         String
+  email        String      @unique
+  senhaHash    String
+  role         Role        @default(SINDICO)
+  condominioId String?
+  criadoEm     DateTime    @default(now())
+  condominio   Condominio? @relation(fields: [condominioId], references: [id])
+  acessos      UsuarioCondominio[]
+}
+
+model UsuarioCondominio {
+  id           String     @id @default(cuid())
+  usuarioId    String
+  condominioId String
+  criadoEm     DateTime   @default(now())
+  usuario      Usuario    @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  condominio   Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, condominioId])
+  @@index([condominioId])
+}
+
+model Venda {
+  id           String     @id @default(cuid())
+  condominioId String
+  unidade      String
+  data         DateTime   @db.Date
+  valorVenda   Decimal    @db.Decimal(10, 2)
+  importadoEm  DateTime   @default(now())
+  condominio   Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+
+  @@index([condominioId, data])
+  @@unique([condominioId, unidade, data, valorVenda])
+}
+
+enum Role {
+  ADMIN
+  SINDICO
+}
+
+enum FormaPagamento {
+  PIX
+  TED
+  DOC
+  TRANSFERENCIA_INTERNA
+  OUTRO
+}
+
+enum ComprovanteStatus {
+  PENDENTE
+  ANEXADO
+  ENVIADO
+  SUBSTITUIDO
+  CANCELADO
+}
+
+enum EnvioStatus {
+  PENDENTE
+  AGENDADO
+  ENVIADO
+  ENTREGUE
+  FALHOU
+  REENVIADO
+}
+
+enum DestinatarioStatus {
+  PENDENTE
+  ENVIADO
+  ENTREGUE
+  FALHOU
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tipo        String
+  entidade    String
+  entidadeId  String
+  usuarioId   String?
+  usuarioRole String?
+  descricao   String
+  payload     Json?
+  ip          String?
+  criadoEm   DateTime @default(now())
+
+  @@index([entidade, entidadeId])
+  @@index([criadoEm])
+}
+
+model Comprovante {
+  id               String            @id @default(cuid())
+  condominioId     String
+  competencia      String
+  nomeArquivo      String
+  caminhoArquivo   String
+  mimeType         String
+  tamanhoBytes     Int
+  hashArquivo      String
+  valorRepasse     Decimal           @db.Decimal(15, 2)
+  dataPagamento    DateTime          @db.Date
+  formaPagamento   FormaPagamento
+  bancoOrigem      String?
+  bancoDestino     String?
+  idTransacaoBanco String?
+  observacao       String?
+  visivelSindico   Boolean           @default(false)
+  status           ComprovanteStatus @default(ANEXADO)
+  justificativa    String?
+  criadoPorId      String?
+  versaoAnteriorId String?
+  criadoEm        DateTime          @default(now())
+  atualizadoEm    DateTime          @updatedAt
+
+  condominio     Condominio    @relation(fields: [condominioId], references: [id])
+  versaoAnterior Comprovante?  @relation("Versoes", fields: [versaoAnteriorId], references: [id])
+  versoes        Comprovante[] @relation("Versoes")
+  envios         EnvioEmail[]
+
+  @@index([condominioId, competencia])
+  @@index([status])
+}
+
+model EnvioEmail {
+  id            String      @id @default(cuid())
+  condominioId  String
+  competencia   String
+  comprovanteId String
+  assunto       String
+  corpo         String
+  observacao    String?
+  status        EnvioStatus @default(PENDENTE)
+  agendadoPara  DateTime?
+  enviadoEm     DateTime?
+  criadoPorId   String?
+  reenvioDeId   String?
+  criadoEm     DateTime    @default(now())
+  atualizadoEm DateTime    @updatedAt
+
+  condominio    Condominio          @relation(fields: [condominioId], references: [id])
+  comprovante   Comprovante         @relation(fields: [comprovanteId], references: [id])
+  reenvio       EnvioEmail?         @relation("Reenvios", fields: [reenvioDeId], references: [id])
+  reenvios      EnvioEmail[]        @relation("Reenvios")
+  destinatarios EnvioDestinatario[]
+
+  @@index([condominioId, competencia])
+}
+
+model EnvioDestinatario {
+  id       String             @id @default(cuid())
+  envioId  String
+  email    String
+  status   DestinatarioStatus @default(PENDENTE)
+  erro     String?
+  criadoEm DateTime           @default(now())
+
+  envio EnvioEmail @relation(fields: [envioId], references: [id], onDelete: Cascade)
+
+  @@index([envioId])
+}
+
+model EmailNotificacao {
+  id               String     @id @default(cuid())
+  condominioId     String
+  email            String
+  emailNormalizado String
+  criadoEm         DateTime   @default(now())
+  atualizadoEm     DateTime   @updatedAt
+  condominio       Condominio @relation(fields: [condominioId], references: [id], onDelete: Cascade)
+
+  @@unique([condominioId, emailNormalizado])
+  @@index([condominioId])
+}
