@@ -1,168 +1,168 @@
-# MiniMerX — Dashboard de Vendas por Condomínio
+# MiniMerX Dashboard
 
-Dashboard web (Next.js 14 + PostgreSQL + Prisma + NextAuth v5) para a MiniMerX exibir vendas
-por condomínio, calcular repasses e permitir upload mensal de planilhas `.xls`.
+Aplicacao web da MiniMerX para operacao, prestacao de contas e acompanhamento de condominios parceiros.
+
+Documentacao complementar:
+
+- `docs/ARQUITETURA.md`
+- `docs/BRANCHING_WORKFLOW.md`
 
 ## Stack
-- Next.js 14 (App Router) + TypeScript
-- PostgreSQL + Prisma ORM
-- NextAuth.js v5 (JWT, Credentials provider, bcrypt)
-- Tailwind CSS + shadcn/ui + Recharts
-- SheetJS (xlsx) para import de planilhas legadas
-- Deploy: Hostinger VPS com PM2 + Nginx ou EasyPanel
 
-## Pré-requisitos
+- Next.js 14
+- PostgreSQL + Prisma ORM
+- Auth.js / NextAuth v5 com Credentials
+- Tailwind CSS + shadcn/ui + Recharts
+- `xlsx` para importacao de planilhas legadas `.xls/.xlsx`
+- PM2 + Nginx ou EasyPanel para deploy
+
+## Pre-requisitos
+
 - Node.js 20+
-- PostgreSQL 14+ (local ou VPS)
 - npm 10+
+- PostgreSQL 14+
 
 ## Setup local
 
 ```bash
-# 1. Instalar dependências
 npm install
-
-# 2. Copiar e ajustar variáveis de ambiente
 cp .env.example .env
-# Edite DATABASE_URL e gere AUTH_SECRET com:
-#   openssl rand -base64 32
-
-# 3. Criar banco e rodar migration
 npm run db:migrate
+```
 
-# 4. Seed do usuário admin inicial
+Antes do seed, defina uma senha inicial segura para o admin bootstrap.
+
+Exemplo em PowerShell:
+
+```powershell
+$env:ADMIN_INITIAL_PASSWORD="defina-uma-senha-forte-aqui"
 npm run db:seed
+```
 
-# 5. Iniciar em dev
+Exemplo em bash:
+
+```bash
+ADMIN_INITIAL_PASSWORD="defina-uma-senha-forte-aqui" npm run db:seed
+```
+
+Depois:
+
+```bash
 npm run dev
 ```
 
-Acesse http://localhost:3000 e faça login com:
-- **Email:** `admin@minimerx.com.br`
-- **Senha:** `MiniMerX@2026`
+## Bootstrap do admin
 
-> Troque a senha do admin após o primeiro login em produção.
+O seed nao usa mais senha padrao fixa.
+
+Variaveis relevantes:
+
+- `ADMIN_INITIAL_EMAIL`
+- `ADMIN_INITIAL_PASSWORD`
+
+Regras:
+
+- `ADMIN_INITIAL_PASSWORD` e obrigatoria para rodar o seed
+- use pelo menos 12 caracteres
+- nao reutilize senha entre ambientes
+
+## Invalidação global de sessão
+
+Para forcar logout global de todos os usuarios, altere:
+
+- `AUTH_SECRET`, ou
+- `AUTH_SESSION_VERSION`
+
+`AUTH_SESSION_VERSION` existe para invalidar sessao sem trocar imediatamente o segredo principal.
+
+Exemplo:
+
+```env
+AUTH_SESSION_VERSION="2"
+```
 
 ## Scripts
 
-| Comando | Descrição |
+| Comando | Descricao |
 |---------|-----------|
-| `npm run dev` | Dev server com hot reload |
-| `npm run build` | Build de produção |
-| `npm start` | Inicia build de produção |
+| `npm run dev` | Sobe o ambiente de desenvolvimento |
+| `npm run build` | Gera build de producao |
+| `npm start` | Inicia a aplicacao em modo producao |
 | `npm run db:generate` | Gera Prisma Client |
-| `npm run db:migrate` | Cria e aplica migration de dev |
-| `npm run db:deploy` | Aplica migrations em produção |
-| `npm run deploy:release` | Release command para EasyPanel (`prisma migrate deploy`) |
-| `npm run deploy:verify` | Gera Prisma Client e valida build de produÃ§Ã£o |
-| `npm run db:seed` | Roda `prisma/seed.ts` |
+| `npm run db:migrate` | Cria e aplica migration de desenvolvimento |
+| `npm run db:deploy` | Aplica migrations em producao |
+| `npm run db:seed` | Executa `prisma/seed.ts` |
 | `npm run db:studio` | Abre Prisma Studio |
-| `npm run db:reset` | Reseta banco (⚠️ apaga dados) |
+| `npm run db:reset` | Reseta o banco local |
+| `npm run deploy:release` | Release command para EasyPanel |
+| `npm run deploy:verify` | Gera client e valida o build |
 
-## Estrutura
+## Importacao de vendas
 
-```
-src/
-├── app/
-│   ├── (auth)/login/              # Login com logo-modelo1
-│   ├── (dashboard)/
-│   │   ├── dashboard/             # Dashboard principal (cards + gráfico + tabela)
-│   │   └── admin/
-│   │       ├── condominios/       # CRUD condomínios (ADMIN)
-│   │       └── upload/            # Upload Excel (ADMIN)
-│   └── api/
-│       ├── auth/[...nextauth]/    # NextAuth handlers
-│       ├── dashboard/             # /resumo e /vendas
-│       ├── condominios/           # CRUD
-│       └── upload/                # Import Excel
-├── components/                    # MetricCard, SalesChart, AppSidebar, etc.
-├── lib/                           # prisma, auth, excel-parser, formatters
-└── middleware.ts                  # Proteção de rotas por role
-```
+Formato esperado:
 
-## Roles
-- **ADMIN** — acesso total. Gerencia condomínios, importa planilhas, vê qualquer condomínio.
-- **SINDICO** — acesso restrito ao próprio condomínio (isolamento de dados no backend).
-
-## Formato da Planilha de Vendas
-
-Colunas aceitas pelo upload (`.xls` legado ou `.xlsx`):
-
-| Coluna | Conteúdo | Exemplo |
+| Coluna | Conteudo | Exemplo |
 |--------|----------|---------|
 | A | Unidade | `MINIMERX - MORATA DOS PASSAROS` |
 | B | Data | `15/03/2026` |
 | C | Vl Venda | `1234.56` |
 
-O parser normaliza o nome da unidade (trim, uppercase, sem acentos) e faz match com
-`Condominio.nome`. Linhas sem match são ignoradas e reportadas.
+Hardening atual do upload:
 
-## Deploy — Hostinger VPS
+- apenas `.xls` e `.xlsx`
+- limite de 5 MB por arquivo
+- limite de 10.000 linhas por importacao
+
+## Variaveis de ambiente
+
+| Variavel | Descricao |
+|----------|-----------|
+| `DATABASE_URL` | Conexao com PostgreSQL |
+| `AUTH_SECRET` | Segredo principal do Auth.js |
+| `AUTH_SESSION_VERSION` | Versao para invalidacao global de sessao |
+| `AUTH_TRUST_HOST` | `true` quando atras de proxy |
+| `NEXTAUTH_URL` | URL publica da aplicacao |
+| `NODE_ENV` | `development` ou `production` |
+| `UPLOADS_DIR` | Diretorio de uploads |
+| `SMTP_HOST` | Host SMTP |
+| `SMTP_PORT` | Porta SMTP |
+| `SMTP_SECURE` | TLS/SSL SMTP |
+| `SMTP_USER` | Usuario SMTP |
+| `SMTP_PASS` | Senha SMTP |
+| `SMTP_FROM` | Remetente padrao |
+| `ADMIN_INITIAL_EMAIL` | Email do admin bootstrap |
+| `ADMIN_INITIAL_PASSWORD` | Senha do admin bootstrap |
+
+Veja `.env.example` para referencia.
+
+## Deploy VPS
 
 ```bash
-# No servidor
-cd /var/www/minimerx-dashboard
 git pull
 npm install
 npx prisma migrate deploy
 npm run build
-pm2 restart minimerx-dashboard  # ou pm2 start ecosystem.config.js --env production
+pm2 restart minimerx-dashboard
 ```
 
-Nginx: copiar `nginx.conf` para `/etc/nginx/sites-available/minimerx`, habilitar via symlink em
-`sites-enabled`, testar (`sudo nginx -t`) e recarregar (`sudo systemctl reload nginx`).
+O `nginx.conf` versionado agora assume HTTPS obrigatorio:
 
-SSL (Let's Encrypt):
-```bash
-sudo certbot --nginx -d dashboard.minimerx.com.br
-```
+- `80` redireciona para `443`
+- `443` usa certificado Let's Encrypt
+- HSTS habilitado
 
-## Variáveis de ambiente
+Antes de aplicar em servidor, confirme que estes caminhos existem:
 
-| Variável | Descrição |
-|----------|-----------|
-| `DATABASE_URL` | String de conexão PostgreSQL |
-| `AUTH_SECRET` | Segredo NextAuth (`openssl rand -base64 32`) |
-| `AUTH_TRUST_HOST` | `true` atrás de proxy reverso |
-| `NEXTAUTH_URL` | URL pública (ex: `https://dashboard.minimerx.com.br`) |
-| `NODE_ENV` | `development` ou `production` |
+- `/etc/letsencrypt/live/minimerx.com.br/fullchain.pem`
+- `/etc/letsencrypt/live/minimerx.com.br/privkey.pem`
 
-## Identidade visual
-Definida em `docs/FRONTEND_SKILL.md` e `tailwind.config.ts`. Paleta MiniMerX:
-verde `#3DAE3C`, navy `#1E2A5A`, azul `#2E8BC0`.
+## Seguranca operacional
 
-## EasyPanel
+Checklist minimo antes de publicar:
 
-O repositÃ³rio jÃ¡ estÃ¡ preparado para build com Nixpacks atravÃ©s do arquivo `.nixpacks.toml`.
-
-| Campo | Valor |
-|----------|-----------|
-| Build Pack | `Nixpacks` |
-| Install Command | automÃ¡tico via `.nixpacks.toml` |
-| Build Command | automÃ¡tico via `.nixpacks.toml` |
-| Start Command | `npm run start` |
-| Release Command | `npm run deploy:release` |
-| Port | `3000` |
-
-VariÃ¡veis obrigatÃ³rias no EasyPanel:
-
-| VariÃ¡vel | Valor esperado |
-|----------|-----------|
-| `DATABASE_URL` | conexÃ£o PostgreSQL de produÃ§Ã£o |
-| `AUTH_SECRET` | segredo gerado com `openssl rand -base64 32` |
-| `AUTH_TRUST_HOST` | `true` |
-| `NEXTAUTH_URL` | `https://minimerx.com.br` |
-| `NODE_ENV` | `production` |
-
-Fluxo recomendado:
-
-1. Fazer push da branch com a correÃ§Ã£o.
-2. Confirmar as envs acima no serviÃ§o.
-3. Rodar o deploy usando `Release Command = npm run deploy:release`.
-4. Conferir os logs do boot logo apÃ³s o rebuild.
-5. Testar o login em aba anÃ´nima.
-
-ObservaÃ§Ã£o:
-Se o banco de produÃ§Ã£o ainda nÃ£o tiver a tabela `UsuarioCondominio`, o login faz fallback
-para o modelo legado usando `Usuario.condominioId`, evitando quebrar a autenticaÃ§Ã£o enquanto
-as migrations do ambiente nÃ£o sÃ£o aplicadas.
+1. Gerar novo `AUTH_SECRET`.
+2. Definir `AUTH_SESSION_VERSION`.
+3. Definir senha segura para `ADMIN_INITIAL_PASSWORD`.
+4. Girar `SMTP_PASS` e credenciais de banco se ja tiverem sido expostas.
+5. Garantir deploy com HTTPS ativo.
+6. Nunca versionar `.env`, cookies ou dumps de sessao.
