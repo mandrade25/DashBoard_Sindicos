@@ -2,16 +2,69 @@ import nodemailer from "nodemailer";
 import { competenciaLabel } from "@/lib/competencia";
 import { formatCurrency } from "@/lib/formatters";
 
-function createTransport() {
+type SmtpConfig = {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  from: string;
+};
+
+function readSmtpConfig(): SmtpConfig {
+  const host = process.env.SMTP_HOST?.trim();
+  const port = Number(process.env.SMTP_PORT ?? 465);
+  const secure = process.env.SMTP_SECURE !== "false";
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS?.trim();
+  const from = process.env.SMTP_FROM?.trim() || "MiniMerX <noreply@minimerx.com.br>";
+
+  const missing = [
+    !host ? "SMTP_HOST" : null,
+    !Number.isFinite(port) ? "SMTP_PORT" : null,
+    !user ? "SMTP_USER" : null,
+    !pass ? "SMTP_PASS" : null,
+  ].filter(Boolean);
+
+  if (missing.length > 0) {
+    throw new Error(`Configuração SMTP incompleta: ${missing.join(", ")}.`);
+  }
+
+  return {
+    host: host as string,
+    port,
+    secure,
+    user: user as string,
+    pass: pass as string,
+    from,
+  };
+}
+
+function createTransport(config: SmtpConfig) {
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT ?? 465),
-    secure: process.env.SMTP_SECURE !== "false",
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: config.user,
+      pass: config.pass,
     },
+    tls: {
+      servername: config.host,
+    },
+    connectionTimeout: 20_000,
+    greetingTimeout: 20_000,
+    socketTimeout: 30_000,
   });
+}
+
+function formatEmailError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Erro desconhecido ao enviar e-mail.";
+  }
+
+  const code = (error as Error & { code?: string }).code;
+  return code ? `${error.message} [${code}]` : error.message;
 }
 
 export interface SendComprovanteParams {
@@ -37,7 +90,8 @@ export interface SendResult {
 }
 
 export async function sendComprovante(params: SendComprovanteParams): Promise<SendResult> {
-  const transporter = createTransport();
+  const config = readSmtpConfig();
+  const transporter = createTransport(config);
   const label = competenciaLabel(params.competencia);
 
   const htmlBody = buildEmailBody({
@@ -54,10 +108,20 @@ export async function sendComprovante(params: SendComprovanteParams): Promise<Se
   const enviados: string[] = [];
   const falhas: Array<{ email: string; erro: string }> = [];
 
+  try {
+    await transporter.verify();
+  } catch (error) {
+    const erro = `Falha ao conectar no SMTP: ${formatEmailError(error)}`;
+    return {
+      enviados: [],
+      falhas: params.destinatarios.map((email) => ({ email, erro })),
+    };
+  }
+
   for (const email of params.destinatarios) {
     try {
       await transporter.sendMail({
-        from: process.env.SMTP_FROM ?? "MiniMerX <noreply@minimerx.com.br>",
+        from: config.from,
         to: email,
         subject: `MiniMerX — Repasse ${label} — ${params.condominioNome}`,
         html: htmlBody,
@@ -73,7 +137,7 @@ export async function sendComprovante(params: SendComprovanteParams): Promise<Se
     } catch (err) {
       falhas.push({
         email,
-        erro: err instanceof Error ? err.message : "Erro desconhecido",
+        erro: formatEmailError(err),
       });
     }
   }
