@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
 import { auth } from "@/lib/auth";
+import { hasCondominioAccess } from "@/lib/condominio-access";
 import { prisma } from "@/lib/prisma";
 import { readFileFromStorage } from "@/lib/storage";
 
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
 
   const isSindico = session.user.role === "SINDICO";
 
-  if (isSindico && session.user.condominioId !== condominioId) {
+  if (!hasCondominioAccess(session.user, condominioId)) {
     return NextResponse.json({ error: "Proibido." }, { status: 403 });
   }
 

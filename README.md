@@ -1,168 +1,175 @@
-# MiniMerX — Dashboard de Vendas por Condomínio
+# MiniMerX Dashboard
 
-Dashboard web (Next.js 14 + PostgreSQL + Prisma + NextAuth v5) para a MiniMerX exibir vendas
-por condomínio, calcular repasses e permitir upload mensal de planilhas `.xls`.
+Aplicacao web da MiniMerX para operacao, prestacao de contas e acompanhamento de condominios parceiros. A base atual roda em Next.js 14 com Prisma, PostgreSQL e Auth.js, e esta sendo preparada na branch `codex/arquitetura-saas` para evoluir de dashboard operacional para plataforma SaaS.
+
+## Estado atual do produto
+
+Hoje o repositorio concentra:
+
+- login e sessao de usuarios
+- dashboard financeiro por condominio
+- historico de comprovantes e comunicacoes
+- upload de vendas por planilha
+- backoffice administrativo MiniMerX
+
+A direcao estrategica de medio prazo e separar:
+
+- `minimerx.com.br` e `www.minimerx.com.br` para institucional
+- `app.minimerx.com.br` para a plataforma SaaS
+
+Documentos principais:
+
+- [docs/ARQUITETURA.md](docs/ARQUITETURA.md)
+- [docs/ROADMAP_SAAS.md](docs/ROADMAP_SAAS.md)
+- [docs/BRANCHING_WORKFLOW.md](docs/BRANCHING_WORKFLOW.md)
+- [docs/ESPECIFICACAO_FUNCIONAL_EVOLUCAO.md](docs/ESPECIFICACAO_FUNCIONAL_EVOLUCAO.md)
+- [docs/FRONTEND_SKILL.md](docs/FRONTEND_SKILL.md)
 
 ## Stack
+
 - Next.js 14 (App Router) + TypeScript
 - PostgreSQL + Prisma ORM
-- NextAuth.js v5 (JWT, Credentials provider, bcrypt)
+- Auth.js / NextAuth v5 beta com JWT e Credentials
 - Tailwind CSS + shadcn/ui + Recharts
-- SheetJS (xlsx) para import de planilhas legadas
-- Deploy: Hostinger VPS com PM2 + Nginx ou EasyPanel
+- SheetJS (`xlsx`) para importacao de planilhas
+- PM2 + Nginx ou EasyPanel para deploy
 
-## Pré-requisitos
+## Pre-requisitos
+
 - Node.js 20+
-- PostgreSQL 14+ (local ou VPS)
 - npm 10+
+- PostgreSQL 14+
 
 ## Setup local
 
 ```bash
-# 1. Instalar dependências
 npm install
-
-# 2. Copiar e ajustar variáveis de ambiente
 cp .env.example .env
-# Edite DATABASE_URL e gere AUTH_SECRET com:
-#   openssl rand -base64 32
-
-# 3. Criar banco e rodar migration
 npm run db:migrate
-
-# 4. Seed do usuário admin inicial
 npm run db:seed
-
-# 5. Iniciar em dev
 npm run dev
 ```
 
-Acesse http://localhost:3000 e faça login com:
-- **Email:** `admin@minimerx.com.br`
-- **Senha:** `MiniMerX@2026`
+Credenciais iniciais do seed:
 
-> Troque a senha do admin após o primeiro login em produção.
+- Email: `admin@minimerx.com.br`
+- Senha: `MiniMerX@2026`
 
 ## Scripts
 
-| Comando | Descrição |
+| Comando | Descricao |
 |---------|-----------|
-| `npm run dev` | Dev server com hot reload |
-| `npm run build` | Build de produção |
-| `npm start` | Inicia build de produção |
+| `npm run dev` | Sobe o ambiente de desenvolvimento |
+| `npm run build` | Gera build de producao |
+| `npm start` | Inicia a aplicacao em modo producao |
 | `npm run db:generate` | Gera Prisma Client |
-| `npm run db:migrate` | Cria e aplica migration de dev |
-| `npm run db:deploy` | Aplica migrations em produção |
-| `npm run deploy:release` | Release command para EasyPanel (`prisma migrate deploy`) |
-| `npm run deploy:verify` | Gera Prisma Client e valida build de produÃ§Ã£o |
-| `npm run db:seed` | Roda `prisma/seed.ts` |
+| `npm run db:migrate` | Cria e aplica migration de desenvolvimento |
+| `npm run db:deploy` | Aplica migrations em producao |
+| `npm run db:seed` | Executa `prisma/seed.ts` |
 | `npm run db:studio` | Abre Prisma Studio |
-| `npm run db:reset` | Reseta banco (⚠️ apaga dados) |
+| `npm run db:reset` | Reseta o banco local |
+| `npm run deploy:release` | Release command para EasyPanel |
+| `npm run deploy:verify` | Gera client e valida o build |
 
-## Estrutura
+## Estrutura resumida
 
-```
+```text
+prisma/
+  schema.prisma
+  seed.ts
+docs/
+  ARQUITETURA.md
+  BRANCHING_WORKFLOW.md
+  ROADMAP_SAAS.md
 src/
-├── app/
-│   ├── (auth)/login/              # Login com logo-modelo1
-│   ├── (dashboard)/
-│   │   ├── dashboard/             # Dashboard principal (cards + gráfico + tabela)
-│   │   └── admin/
-│   │       ├── condominios/       # CRUD condomínios (ADMIN)
-│   │       └── upload/            # Upload Excel (ADMIN)
-│   └── api/
-│       ├── auth/[...nextauth]/    # NextAuth handlers
-│       ├── dashboard/             # /resumo e /vendas
-│       ├── condominios/           # CRUD
-│       └── upload/                # Import Excel
-├── components/                    # MetricCard, SalesChart, AppSidebar, etc.
-├── lib/                           # prisma, auth, excel-parser, formatters
-└── middleware.ts                  # Proteção de rotas por role
+  app/
+    (auth)/
+    (dashboard)/
+    api/
+  components/
+  lib/
 ```
 
-## Roles
-- **ADMIN** — acesso total. Gerencia condomínios, importa planilhas, vê qualquer condomínio.
-- **SINDICO** — acesso restrito ao próprio condomínio (isolamento de dados no backend).
+## Principais modulos atuais
 
-## Formato da Planilha de Vendas
+### Portal autenticado
 
-Colunas aceitas pelo upload (`.xls` legado ou `.xlsx`):
+- `/dashboard`
+- `/historico`
+- `/notificacoes`
+- `/perfil`
 
-| Coluna | Conteúdo | Exemplo |
+### Backoffice MiniMerX
+
+- `/admin/consolidado`
+- `/admin/condominios`
+- `/admin/comprovantes`
+- `/admin/pendencias`
+- `/admin/calendario`
+- `/admin/auditoria`
+- `/admin/upload`
+- `/admin/dados`
+
+## Modelo atual de acesso
+
+Perfis implementados hoje:
+
+- `ADMIN`
+- `SINDICO`
+
+O sistema ja suporta acessos multi-condominio por `UsuarioCondominio`, mas ainda preserva compatibilidade com o campo legado `Usuario.condominioId`. A arquitetura alvo desta trilha SaaS e mover o sistema para um modelo com conta assinante, memberships e papeis mais granulares.
+
+## Upload de vendas
+
+Formato esperado da planilha:
+
+| Coluna | Conteudo | Exemplo |
 |--------|----------|---------|
 | A | Unidade | `MINIMERX - MORATA DOS PASSAROS` |
 | B | Data | `15/03/2026` |
 | C | Vl Venda | `1234.56` |
 
-O parser normaliza o nome da unidade (trim, uppercase, sem acentos) e faz match com
-`Condominio.nome`. Linhas sem match são ignoradas e reportadas.
+O parser normaliza o nome da unidade e faz o match com `Condominio.nome`.
 
-## Deploy — Hostinger VPS
+## Variaveis de ambiente
+
+| Variavel | Descricao |
+|----------|-----------|
+| `DATABASE_URL` | String de conexao com PostgreSQL |
+| `AUTH_SECRET` | Segredo do Auth.js |
+| `AUTH_TRUST_HOST` | `true` quando atras de proxy |
+| `NEXTAUTH_URL` | URL publica da aplicacao |
+| `NODE_ENV` | `development` ou `production` |
+
+Veja tambem `.env.example`.
+
+## Deploy VPS
 
 ```bash
-# No servidor
-cd /var/www/minimerx-dashboard
 git pull
 npm install
 npx prisma migrate deploy
 npm run build
-pm2 restart minimerx-dashboard  # ou pm2 start ecosystem.config.js --env production
+pm2 restart minimerx-dashboard
 ```
 
-Nginx: copiar `nginx.conf` para `/etc/nginx/sites-available/minimerx`, habilitar via symlink em
-`sites-enabled`, testar (`sudo nginx -t`) e recarregar (`sudo systemctl reload nginx`).
-
-SSL (Let's Encrypt):
-```bash
-sudo certbot --nginx -d dashboard.minimerx.com.br
-```
-
-## Variáveis de ambiente
-
-| Variável | Descrição |
-|----------|-----------|
-| `DATABASE_URL` | String de conexão PostgreSQL |
-| `AUTH_SECRET` | Segredo NextAuth (`openssl rand -base64 32`) |
-| `AUTH_TRUST_HOST` | `true` atrás de proxy reverso |
-| `NEXTAUTH_URL` | URL pública (ex: `https://dashboard.minimerx.com.br`) |
-| `NODE_ENV` | `development` ou `production` |
-
-## Identidade visual
-Definida em `docs/FRONTEND_SKILL.md` e `tailwind.config.ts`. Paleta MiniMerX:
-verde `#3DAE3C`, navy `#1E2A5A`, azul `#2E8BC0`.
+O `nginx.conf` e o `ecosystem.config.js` na raiz servem como base para o deploy em VPS Hostinger.
 
 ## EasyPanel
 
-O repositÃ³rio jÃ¡ estÃ¡ preparado para build com Nixpacks atravÃ©s do arquivo `.nixpacks.toml`.
+O repositorio ja possui `.nixpacks.toml` para build com Nixpacks.
 
-| Campo | Valor |
-|----------|-----------|
-| Build Pack | `Nixpacks` |
-| Install Command | automÃ¡tico via `.nixpacks.toml` |
-| Build Command | automÃ¡tico via `.nixpacks.toml` |
-| Start Command | `npm run start` |
-| Release Command | `npm run deploy:release` |
-| Port | `3000` |
+Configuracao esperada:
 
-VariÃ¡veis obrigatÃ³rias no EasyPanel:
+- Start Command: `npm run start`
+- Release Command: `npm run deploy:release`
+- Port: `3000`
 
-| VariÃ¡vel | Valor esperado |
-|----------|-----------|
-| `DATABASE_URL` | conexÃ£o PostgreSQL de produÃ§Ã£o |
-| `AUTH_SECRET` | segredo gerado com `openssl rand -base64 32` |
-| `AUTH_TRUST_HOST` | `true` |
-| `NEXTAUTH_URL` | `https://minimerx.com.br` |
-| `NODE_ENV` | `production` |
+## Branching
 
-Fluxo recomendado:
+Regras desta fase:
 
-1. Fazer push da branch com a correÃ§Ã£o.
-2. Confirmar as envs acima no serviÃ§o.
-3. Rodar o deploy usando `Release Command = npm run deploy:release`.
-4. Conferir os logs do boot logo apÃ³s o rebuild.
-5. Testar o login em aba anÃ´nima.
+- `main` continua sendo a branch de producao
+- `codex/arquitetura-saas` concentra organizacao e preparacao SaaS
 
-ObservaÃ§Ã£o:
-Se o banco de produÃ§Ã£o ainda nÃ£o tiver a tabela `UsuarioCondominio`, o login faz fallback
-para o modelo legado usando `Usuario.condominioId`, evitando quebrar a autenticaÃ§Ã£o enquanto
-as migrations do ambiente nÃ£o sÃ£o aplicadas.
+Detalhes em [docs/BRANCHING_WORKFLOW.md](docs/BRANCHING_WORKFLOW.md).

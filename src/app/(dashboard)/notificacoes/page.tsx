@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import {
+  getAccessibleCondominioIds,
+  resolveSelectedCondominioId,
+} from "@/lib/condominio-access";
 import { prisma } from "@/lib/prisma";
 import { NotificacoesView } from "./notificacoes-view";
 
@@ -20,12 +24,7 @@ export default async function NotificacoesPage({
     redirect("/dashboard");
   }
 
-  const sindicoCondominioIds = Array.from(
-    new Set([
-      ...(session.user.condominioIds ?? []),
-      ...(session.user.condominioId ? [session.user.condominioId] : []),
-    ]),
-  );
+  const sindicoCondominioIds = getAccessibleCondominioIds(session.user);
 
   const condominios = await prisma.condominio.findMany({
     where: { id: { in: sindicoCondominioIds } },
@@ -33,10 +32,11 @@ export default async function NotificacoesPage({
     select: { id: true, nome: true },
   });
 
-  const selectedCondominioId =
-    condominios.some((item) => item.id === searchParams?.condominioId)
-      ? searchParams?.condominioId ?? null
-      : session.user.condominioId ?? condominios[0]?.id ?? null;
+  const selectedCondominioId = resolveSelectedCondominioId({
+    user: session.user,
+    requestedCondominioId: searchParams?.condominioId,
+    fallbackCondominioIds: condominios.map((item) => item.id),
+  });
 
   if (!selectedCondominioId) {
     redirect("/dashboard");
@@ -61,7 +61,7 @@ export default async function NotificacoesPage({
 
   return (
     <NotificacoesView
-      condominioNome={condominio?.nome ?? "Seu condomínio"}
+      condominioNome={condominio?.nome ?? "Seu condominio"}
       condominioIdSelecionado={selectedCondominioId}
       condominios={condominios}
       initialItems={emails.map((item) => ({

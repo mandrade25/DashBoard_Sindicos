@@ -15,7 +15,8 @@
     "deploy:verify": "prisma generate && next build",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "db:clear-production": "tsx scripts/clear-production.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
