@@ -1,37 +1,39 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { assertAcessoCondominio } from "@/lib/dashboard-queries";
+import {
+  hasCondominioAccess,
+  resolveSelectedCondominioId,
+} from "@/lib/condominio-access";
 import { prisma } from "@/lib/prisma";
 import { competenciaLabel } from "@/lib/competencia";
 
 export async function GET(req: Request) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Nao autenticado." }, { status: 401 });
+  if (!session?.user) {
+    return NextResponse.json({ error: "Nao autenticado." }, { status: 401 });
+  }
 
   const { searchParams } = new URL(req.url);
   const condominioIdParam = searchParams.get("condominioId");
-  const requestedCondominioId =
-    condominioIdParam ??
-    (session.user.role === "SINDICO" ? session.user.condominioId ?? undefined : undefined);
+  const condominioId = resolveSelectedCondominioId({
+    user: session.user,
+    requestedCondominioId: condominioIdParam,
+  });
 
-  if (session.user.role === "SINDICO" && !requestedCondominioId) {
+  if (session.user.role === "SINDICO" && !condominioId) {
     return NextResponse.json({ error: "Sindico sem condominio." }, { status: 422 });
   }
 
-  if (requestedCondominioId) {
-    const autorizado = await assertAcessoCondominio(
-      session.user.role,
-      session.user.condominioIds ?? [],
-      requestedCondominioId,
-    );
-    if (!autorizado) {
-      return NextResponse.json({ error: "Proibido." }, { status: 403 });
-    }
+  if (condominioId && !hasCondominioAccess(session.user, condominioId)) {
+    return NextResponse.json({ error: "Proibido." }, { status: 403 });
+  }
 
+  if (condominioId) {
     const condominio = await prisma.condominio.findUnique({
-      where: { id: requestedCondominioId },
+      where: { id: condominioId },
       select: { id: true },
     });
+
     if (!condominio) {
       return NextResponse.json({ error: "Condominio nao encontrado." }, { status: 404 });
     }
@@ -39,7 +41,7 @@ export async function GET(req: Request) {
 
   const comprovantes = await prisma.comprovante.findMany({
     where: {
-      ...(requestedCondominioId ? { condominioId: requestedCondominioId } : {}),
+      ...(condominioId ? { condominioId } : {}),
       ...(session.user.role === "SINDICO" ? { visivelSindico: true } : {}),
     },
     orderBy: [{ competencia: "desc" }, { criadoEm: "desc" }],

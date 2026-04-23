@@ -2,23 +2,35 @@
 
 ## Objetivo
 
-Este projeto passa a operar com duas trilhas principais:
+Este workflow existe para proteger a producao atual e permitir evolucao incremental da plataforma MiniMerX sem misturar manutencao operacional com reorganizacao estrutural.
 
-- `main`: produção, hotfixes, ajustes rápidos e pequenas evoluções
-- `codex/arquitetura-saas`: reorganização estrutural, documentação, refactors e preparação para SaaS multi-tenant
+## Branches Principais
 
-Isso permite seguir entregando correções com baixo risco enquanto a arquitetura evolui em paralelo.
+### `main`
 
-## Regras
+- branch de producao
+- recebe apenas hotfixes, correcoes validadas e entregas prontas para release
+- deve permanecer estavel
 
-1. Toda correção urgente vai primeiro para `main`.
-2. Toda mudança estrutural ou de médio prazo vai para `codex/arquitetura-saas`.
-3. A branch `codex/arquitetura-saas` deve ser atualizada com frequência a partir da `main`.
-4. Evitar PRs gigantes de volta para `main`; preferir blocos pequenos e revisáveis.
+### `codex/arquitetura-saas`
 
-## Sincronização da branch paralela
+- branch de evolucao estrutural e preparacao SaaS
+- usada para documentacao arquitetural, organizacao de codigo, refactors seguros e mudancas incrementais de base
+- nao deve ser usada para hotfixes urgentes de producao sem alinhamento explicito
 
-Sempre que `main` receber hotfixes relevantes de autenticação, deploy, domínio, banco ou permissões:
+## Regras Operacionais
+
+1. Nunca trabalhar direto em `main` para iniciativas de reorganizacao.
+2. Hotfixes de producao devem nascer de `main`.
+3. Evolucao SaaS deve continuar em `codex/arquitetura-saas`.
+4. Refactors grandes devem ser quebrados em entregas pequenas e revisaveis.
+5. Antes de alterar estrutura, revisar impacto na producao atual.
+6. Nao misturar correcoes urgentes de operacao com mudancas amplas de arquitetura na mesma entrega.
+7. A branch `codex/arquitetura-saas` deve ser atualizada com frequencia a partir de `main`.
+
+## Sincronizacao da branch paralela
+
+Sempre que `main` receber hotfixes relevantes de autenticacao, deploy, dominio, banco ou permissoes:
 
 ```bash
 git checkout codex/arquitetura-saas
@@ -26,11 +38,32 @@ git fetch origin
 git merge origin/main
 ```
 
-Se houver conflito, resolver imediatamente para não acumular divergência.
+Se houver conflito, resolver imediatamente para nao acumular divergencia.
+
+## Tipos de Trabalho
+
+### Hotfix
+
+- origem: `main`
+- destino: `main`
+- escopo: correcao urgente e isolada
+
+### Evolucao incremental
+
+- origem: `codex/arquitetura-saas`
+- destino: `codex/arquitetura-saas` ate consolidacao
+- escopo: documentacao, preparacao SaaS, refactors seguros, modularizacao
+
+### Feature futura de produto
+
+Preferencia:
+
+- sair de `codex/arquitetura-saas` quando a feature depender da nova organizacao
+- sair de `main` apenas se for independente da trilha SaaS e precisar ir rapido para producao
 
 ## Fluxo recomendado
 
-### Hotfix / produção
+### Hotfix / producao
 
 ```bash
 git checkout main
@@ -55,24 +88,53 @@ git push
 ```bash
 git checkout codex/arquitetura-saas
 git pull
-# implementar mudança estrutural
+# implementar mudanca estrutural
 git add .
 git commit -m "refactor(...): ..."
 git push
 ```
 
-## Convenção de commits
+## Estrategia Recomendada para Esta Fase
 
-- `fix(...)`: correção funcional
-- `chore(...)`: manutenção técnica ou infraestrutura
-- `docs(...)`: documentação
-- `refactor(...)`: reorganização sem alterar comportamento esperado
+Ordem de prioridade:
+
+1. diagnostico e documentacao
+2. helpers compartilhados e naming
+3. consolidacao de acesso e autorizacao
+4. modularizacao por dominio
+5. novas entidades SaaS
+
+## O Que Evitar
+
+- megarefactor de schema e codigo na mesma entrega
+- remocao imediata de compatibilidade legada sem checklist
+- alterar contratos de auth e acesso sem revisar todas as rotas
+- mudar navegacao de produto e persistencia ao mesmo tempo
+- PRs gigantes de volta para `main`
+
+## Criterio de Merge Futuro
+
+Uma entrega de `codex/arquitetura-saas` so deve ser promovida para `main` quando:
+
+- estiver funcionalmente segura
+- tiver escopo claro
+- nao depender de migracao estrutural ainda nao aplicada
+- estiver documentada
+
+## Convencao de commits
+
+- `fix(...)`: correcao funcional
+- `chore(...)`: manutencao tecnica ou infraestrutura
+- `docs(...)`: documentacao
+- `refactor(...)`: reorganizacao sem alterar comportamento esperado
 - `feat(...)`: nova funcionalidade
 
-## Próximas frentes previstas para `codex/arquitetura-saas`
+## Convencao de Branches Auxiliares
 
-1. Revisar README e documentação com encoding e instruções atualizadas
-2. Criar `docs/ARQUITETURA.md`
-3. Mapear evolução para `app.minimerx.com.br`
-4. Preparar modelo para conta/tenant/assinatura/novos papéis
-5. Separar melhor camadas de domínio, serviços e rotas
+Quando necessario abrir branches auxiliares a partir de `codex/arquitetura-saas`, usar prefixos como:
+
+- `codex/docs-*`
+- `codex/refactor-*`
+- `codex/saas-*`
+
+Isso facilita revisao e mantem o contexto da trilha.

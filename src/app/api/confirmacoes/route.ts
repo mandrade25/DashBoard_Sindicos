@@ -1,18 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { hasCondominioAccess } from "@/lib/condominio-access";
 import { prisma } from "@/lib/prisma";
 import { competenciaLabel } from "@/lib/competencia";
-
-function getAccessibleCondominioIds(session: {
-  user: { condominioIds?: string[] | null; condominioId?: string | null };
-}) {
-  return Array.from(
-    new Set([
-      ...(session.user.condominioIds ?? []),
-      ...(session.user.condominioId ? [session.user.condominioId] : []),
-    ]),
-  );
-}
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -27,7 +17,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Condominio obrigatorio." }, { status: 400 });
   }
 
-  if (session.user.role === "SINDICO" && !getAccessibleCondominioIds(session).includes(condominioId)) {
+  if (!hasCondominioAccess(session.user, condominioId)) {
     return NextResponse.json({ error: "Proibido." }, { status: 403 });
   }
 
@@ -70,7 +60,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Condominio e competencia sao obrigatorios." }, { status: 400 });
   }
 
-  if (session.user.role === "SINDICO" && !getAccessibleCondominioIds(session).includes(condominioId)) {
+  if (!hasCondominioAccess(session.user, condominioId)) {
     return NextResponse.json({ error: "Proibido." }, { status: 403 });
   }
 

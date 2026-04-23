@@ -1,19 +1,37 @@
 # MiniMerX Dashboard
 
-Aplicacao web da MiniMerX para operacao, prestacao de contas e acompanhamento de condominios parceiros.
+Aplicacao web da MiniMerX para operacao, prestacao de contas e acompanhamento de condominios parceiros. A base atual roda em Next.js com Prisma, PostgreSQL e Auth.js, e esta sendo preparada na branch `codex/arquitetura-saas` para evoluir de dashboard operacional para plataforma SaaS.
 
-Documentacao complementar:
+Documentacao principal:
 
-- `docs/ARQUITETURA.md`
-- `docs/BRANCHING_WORKFLOW.md`
+- [docs/ARQUITETURA.md](docs/ARQUITETURA.md)
+- [docs/ROADMAP_SAAS.md](docs/ROADMAP_SAAS.md)
+- [docs/BRANCHING_WORKFLOW.md](docs/BRANCHING_WORKFLOW.md)
+- [docs/ESPECIFICACAO_FUNCIONAL_EVOLUCAO.md](docs/ESPECIFICACAO_FUNCIONAL_EVOLUCAO.md)
+- [docs/FRONTEND_SKILL.md](docs/FRONTEND_SKILL.md)
+
+## Estado atual do produto
+
+Hoje o repositorio concentra:
+
+- login e sessao de usuarios
+- dashboard financeiro por condominio
+- historico de comprovantes e comunicacoes
+- upload de vendas por planilha
+- backoffice administrativo MiniMerX
+
+A direcao estrategica de medio prazo e separar:
+
+- `minimerx.com.br` e `www.minimerx.com.br` para institucional
+- `app.minimerx.com.br` para a plataforma SaaS
 
 ## Stack
 
-- Next.js 14
+- Next.js 15 (App Router) + TypeScript
 - PostgreSQL + Prisma ORM
-- Auth.js / NextAuth v5 com Credentials
+- Auth.js / NextAuth v5 beta com JWT e Credentials
 - Tailwind CSS + shadcn/ui + Recharts
-- `xlsx` para importacao de planilhas legadas `.xls/.xlsx`
+- SheetJS (`xlsx`) para importacao de planilhas
 - PM2 + Nginx ou EasyPanel para deploy
 
 ## Pre-requisitos
@@ -97,9 +115,57 @@ AUTH_SESSION_VERSION="2"
 | `npm run deploy:release` | Release command para EasyPanel |
 | `npm run deploy:verify` | Gera client e valida o build |
 
-## Importacao de vendas
+## Estrutura resumida
 
-Formato esperado:
+```text
+prisma/
+  schema.prisma
+  seed.ts
+docs/
+  ARQUITETURA.md
+  BRANCHING_WORKFLOW.md
+  ROADMAP_SAAS.md
+src/
+  app/
+    (auth)/
+    (dashboard)/
+    api/
+  components/
+  lib/
+```
+
+## Principais modulos atuais
+
+### Portal autenticado
+
+- `/dashboard`
+- `/historico`
+- `/notificacoes`
+- `/perfil`
+
+### Backoffice MiniMerX
+
+- `/admin/consolidado`
+- `/admin/condominios`
+- `/admin/comprovantes`
+- `/admin/pendencias`
+- `/admin/calendario`
+- `/admin/auditoria`
+- `/admin/upload`
+- `/admin/dados`
+
+## Modelo atual de acesso
+
+Perfis implementados hoje:
+
+- `ADMIN`
+- `SINDICO`
+
+O sistema ja suporta acessos multi-condominio por `UsuarioCondominio`, mas ainda preserva compatibilidade com o campo legado `Usuario.condominioId`. A arquitetura alvo desta trilha SaaS e mover o sistema para um modelo com conta assinante, memberships e papeis mais granulares.
+
+## Upload de vendas
+
+Formato esperado da planilha:
 
 | Coluna | Conteudo | Exemplo |
 |--------|----------|---------|
@@ -133,7 +199,7 @@ Hardening atual do upload:
 | `ADMIN_INITIAL_EMAIL` | Email do admin bootstrap |
 | `ADMIN_INITIAL_PASSWORD` | Senha do admin bootstrap |
 
-Veja `.env.example` para referencia.
+Veja tambem `.env.example`.
 
 ## Deploy VPS
 

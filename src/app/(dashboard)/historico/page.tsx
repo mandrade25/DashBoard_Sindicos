@@ -1,10 +1,14 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import {
+  getAccessibleCondominioIds,
+  resolveSelectedCondominioId,
+} from "@/lib/condominio-access";
 import { prisma } from "@/lib/prisma";
 import { HistoricoView } from "./historico-view";
 import { competenciaLabel, nextMonthStart, toCompetencia } from "@/lib/competencia";
 
-export const metadata = { title: "Histórico — MiniMerX" };
+export const metadata = { title: "Historico - MiniMerX" };
 
 export default async function HistoricoPage({
   searchParams,
@@ -16,12 +20,7 @@ export default async function HistoricoPage({
   if (!session?.user) redirect("/login");
 
   const isSindico = session.user.role === "SINDICO";
-  const sindicoCondominioIds = Array.from(
-    new Set([
-      ...(session.user.condominioIds ?? []),
-      ...(session.user.condominioId ? [session.user.condominioId] : []),
-    ]),
-  );
+  const sindicoCondominioIds = getAccessibleCondominioIds(session.user);
   const condominios =
     isSindico
       ? await prisma.condominio.findMany({
@@ -33,9 +32,11 @@ export default async function HistoricoPage({
 
   const selectedCondominioId =
     isSindico && condominios.length > 0
-      ? condominios.some((item) => item.id === resolvedSearchParams?.condominioId)
-        ? resolvedSearchParams?.condominioId ?? null
-        : session.user.condominioId ?? condominios[0]?.id ?? null
+      ? resolveSelectedCondominioId({
+          user: session.user,
+          requestedCondominioId: resolvedSearchParams?.condominioId,
+          fallbackCondominioIds: condominios.map((item) => item.id),
+        })
       : null;
 
   if (isSindico && !selectedCondominioId) redirect("/dashboard");
@@ -72,7 +73,9 @@ export default async function HistoricoPage({
   }
 
   const competencias = Array.from(groupMap.values()).map((group) => group[0].competencia);
-  const condominioIds = Array.from(new Set(Array.from(groupMap.values()).map((group) => group[0].condominioId)));
+  const condominioIds = Array.from(
+    new Set(Array.from(groupMap.values()).map((group) => group[0].condominioId)),
+  );
   const competenciasOrdenadas = [...competencias].sort();
   const competenciaInicial = competenciasOrdenadas[0] ?? null;
   const competenciaFinal = competenciasOrdenadas[competenciasOrdenadas.length - 1] ?? null;
