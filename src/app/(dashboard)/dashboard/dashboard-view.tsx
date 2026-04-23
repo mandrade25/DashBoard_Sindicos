@@ -54,8 +54,16 @@ export function DashboardView({ role, condominioIdInicial, condominios }: Dashbo
 
   useEffect(() => {
     const saved = localStorage.getItem(LS_KEY);
-    if (saved) setCondominioId(saved);
-  }, []);
+    if (!saved) return;
+
+    const savedExists = condominios.some((condominio) => condominio.id === saved);
+    if (savedExists) {
+      setCondominioId(saved);
+      return;
+    }
+
+    localStorage.removeItem(LS_KEY);
+  }, [condominios]);
 
   function handleSelecionarCondominio(id: string) {
     setCondominioId(id);
@@ -104,8 +112,16 @@ export function DashboardView({ role, condominioIdInicial, condominios }: Dashbo
       setLoading(false);
       return;
     }
+
+    const condominioExiste = condominios.some((condominio) => condominio.id === condominioId);
+    if (!condominioExiste) {
+      setLoading(false);
+      setError(false);
+      return;
+    }
+
     return loadData(condominioId, period);
-  }, [condominioId, period]);
+  }, [condominioId, condominios, period]);
 
   useEffect(() => {
     if (condominioId && condominios.length > 0) {

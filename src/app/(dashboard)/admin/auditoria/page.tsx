@@ -5,15 +5,26 @@ import { AuditoriaView } from "./auditoria-view";
 
 const PAGE_SIZE = 30;
 
-export default async function AuditoriaPage({ searchParams }: { searchParams: { page?: string; tipo?: string; entidade?: string; from?: string; to?: string } }) {
+export default async function AuditoriaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    page?: string;
+    tipo?: string;
+    entidade?: string;
+    from?: string;
+    to?: string;
+  }>;
+}) {
+  const resolvedSearchParams = await searchParams;
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") redirect("/dashboard");
 
-  const page = Math.max(1, Number(searchParams.page ?? "1"));
-  const tipo = searchParams.tipo ?? undefined;
-  const entidade = searchParams.entidade ?? undefined;
-  const from = searchParams.from;
-  const to = searchParams.to;
+  const page = Math.max(1, Number(resolvedSearchParams.page ?? "1"));
+  const tipo = resolvedSearchParams.tipo ?? undefined;
+  const entidade = resolvedSearchParams.entidade ?? undefined;
+  const from = resolvedSearchParams.from;
+  const to = resolvedSearchParams.to;
 
   const where = {
     ...(tipo ? { tipo } : {}),

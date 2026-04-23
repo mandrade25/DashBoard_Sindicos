@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { getCurrentSessionVersion } from "@/lib/session-version";
 
 declare module "next-auth" {
   interface Session {
@@ -19,6 +20,7 @@ type AppJWT = {
   id: string;
   role: "ADMIN" | "SINDICO";
   condominioId: string | null;
+  sessionVersion?: string;
   [key: string]: unknown;
 };
 
@@ -159,9 +161,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = (user as { id: string }).id;
         token.role = (user as { role: "ADMIN" | "SINDICO" }).role;
         token.condominioId = (user as { condominioId: string | null }).condominioId;
+        token.sessionVersion = getCurrentSessionVersion();
       } else {
         token.condominioId =
           typeof token.condominioId === "string" ? token.condominioId : null;
+        token.sessionVersion =
+          typeof token.sessionVersion === "string"
+            ? token.sessionVersion
+            : getCurrentSessionVersion();
       }
       return token;
     },

@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import {
+  getAccessibleCondominioIds,
+  resolveSelectedCondominioId,
+} from "@/lib/condominio-access";
 
 export const notificationEmailSchema = z.object({
   email: z
@@ -31,10 +35,6 @@ export function normalizeNotificationEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function mergeCondominioIds(condominioIds: string[] | undefined, condominioId: string | null) {
-  return Array.from(new Set([...(condominioIds ?? []), ...(condominioId ? [condominioId] : [])]));
-}
-
 export async function getSindicoCondominioAccess(condominioId?: string | null) {
   const session = await auth();
 
@@ -46,12 +46,11 @@ export async function getSindicoCondominioAccess(condominioId?: string | null) {
     return { error: "Proibido.", status: 403 as const };
   }
 
-  const condominioIds = mergeCondominioIds(
-    session.user.condominioIds,
-    session.user.condominioId,
-  );
-  const resolvedCondominioId =
-    condominioId ?? session.user.condominioId ?? condominioIds[0] ?? null;
+  const condominioIds = getAccessibleCondominioIds(session.user);
+  const resolvedCondominioId = resolveSelectedCondominioId({
+    user: session.user,
+    requestedCondominioId: condominioId,
+  });
 
   if (!resolvedCondominioId || !condominioIds.includes(resolvedCondominioId)) {
     return { error: "Proibido.", status: 403 as const };

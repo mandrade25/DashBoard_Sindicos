@@ -1,4 +1,8 @@
 import { auth } from "@/lib/auth";
+import {
+  getAccessibleCondominioIds,
+  resolveSelectedCondominioId,
+} from "@/lib/condominio-access";
 import { prisma } from "@/lib/prisma";
 import { DashboardView } from "./dashboard-view";
 
@@ -7,12 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const session = await auth();
   const role = session!.user.role;
-  const sindicoCondominioIds = Array.from(
-    new Set([
-      ...(session!.user.condominioIds ?? []),
-      ...(session!.user.condominioId ? [session!.user.condominioId] : []),
-    ]),
-  );
+  const sindicoCondominioIds = getAccessibleCondominioIds(session!.user);
 
   const condominios =
     role === "ADMIN"
@@ -29,11 +28,10 @@ export default async function DashboardPage() {
   return (
     <DashboardView
       role={role}
-      condominioIdInicial={
-        role === "SINDICO"
-          ? session!.user.condominioId ?? condominios[0]?.id ?? null
-          : condominios[0]?.id ?? null
-      }
+      condominioIdInicial={resolveSelectedCondominioId({
+        user: session!.user,
+        fallbackCondominioIds: condominios.map((item) => item.id),
+      })}
       condominios={condominios}
     />
   );

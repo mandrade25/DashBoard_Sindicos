@@ -25,5 +25,7 @@ export async function GET(req: Request) {
   if (!autorizado) return NextResponse.json({ error: "Proibido" }, { status: 403 });
 
   const data = await getVendas(condominioId, period);
+  if (!data) return NextResponse.json({ error: "Condominio nao encontrado" }, { status: 404 });
+
   return NextResponse.json(data);
 }

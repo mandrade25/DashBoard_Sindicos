@@ -58,6 +58,8 @@ export function LoginForm({ callbackUrl = "/dashboard" }: LoginFormProps) {
   const authErrorMessage =
     authError === "MissingCSRF"
       ? "A sessao de login expirou. Recarregue a pagina e tente novamente."
+      : authError === "RateLimit"
+        ? "Muitas tentativas de login. Aguarde alguns minutos antes de tentar novamente."
       : authError
         ? "E-mail ou senha invalidos."
         : null;
