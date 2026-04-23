@@ -9,7 +9,7 @@ por condomínio, calcular repasses e permitir upload mensal de planilhas `.xls`.
 - NextAuth.js v5 (JWT, Credentials provider, bcrypt)
 - Tailwind CSS + shadcn/ui + Recharts
 - SheetJS (xlsx) para import de planilhas legadas
-- Deploy: PM2 + Nginx em VPS Hostinger
+- Deploy: Hostinger VPS com PM2 + Nginx ou EasyPanel
 
 ## Pré-requisitos
 - Node.js 20+
@@ -53,6 +53,8 @@ Acesse http://localhost:3000 e faça login com:
 | `npm run db:generate` | Gera Prisma Client |
 | `npm run db:migrate` | Cria e aplica migration de dev |
 | `npm run db:deploy` | Aplica migrations em produção |
+| `npm run deploy:release` | Release command para EasyPanel (`prisma migrate deploy`) |
+| `npm run deploy:verify` | Gera Prisma Client e valida build de produÃ§Ã£o |
 | `npm run db:seed` | Roda `prisma/seed.ts` |
 | `npm run db:studio` | Abre Prisma Studio |
 | `npm run db:reset` | Reseta banco (⚠️ apaga dados) |
@@ -128,3 +130,39 @@ sudo certbot --nginx -d dashboard.minimerx.com.br
 ## Identidade visual
 Definida em `docs/FRONTEND_SKILL.md` e `tailwind.config.ts`. Paleta MiniMerX:
 verde `#3DAE3C`, navy `#1E2A5A`, azul `#2E8BC0`.
+
+## EasyPanel
+
+O repositÃ³rio jÃ¡ estÃ¡ preparado para build com Nixpacks atravÃ©s do arquivo `.nixpacks.toml`.
+
+| Campo | Valor |
+|----------|-----------|
+| Build Pack | `Nixpacks` |
+| Install Command | automÃ¡tico via `.nixpacks.toml` |
+| Build Command | automÃ¡tico via `.nixpacks.toml` |
+| Start Command | `npm run start` |
+| Release Command | `npm run deploy:release` |
+| Port | `3000` |
+
+VariÃ¡veis obrigatÃ³rias no EasyPanel:
+
+| VariÃ¡vel | Valor esperado |
+|----------|-----------|
+| `DATABASE_URL` | conexÃ£o PostgreSQL de produÃ§Ã£o |
+| `AUTH_SECRET` | segredo gerado com `openssl rand -base64 32` |
+| `AUTH_TRUST_HOST` | `true` |
+| `NEXTAUTH_URL` | `https://minimerx.com.br` |
+| `NODE_ENV` | `production` |
+
+Fluxo recomendado:
+
+1. Fazer push da branch com a correÃ§Ã£o.
+2. Confirmar as envs acima no serviÃ§o.
+3. Rodar o deploy usando `Release Command = npm run deploy:release`.
+4. Conferir os logs do boot logo apÃ³s o rebuild.
+5. Testar o login em aba anÃ´nima.
+
+ObservaÃ§Ã£o:
+Se o banco de produÃ§Ã£o ainda nÃ£o tiver a tabela `UsuarioCondominio`, o login faz fallback
+para o modelo legado usando `Usuario.condominioId`, evitando quebrar a autenticaÃ§Ã£o enquanto
+as migrations do ambiente nÃ£o sÃ£o aplicadas.

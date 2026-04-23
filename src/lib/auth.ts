@@ -22,6 +22,20 @@ type AppJWT = {
   [key: string]: unknown;
 };
 
+type AuthUserRecord = {
+  id: string;
+  nome: string;
+  email: string;
+  senhaHash: string;
+  role: "ADMIN" | "SINDICO";
+  condominioId: string | null;
+  acessos: Array<{ condominioId: string }>;
+};
+
+type AuthLookup =
+  | { id: string; email?: never }
+  | { email: string; id?: never };
+
 function mergeCondominioIds(
   condominioIds: string[] | null | undefined,
   condominioId: string | null | undefined,
@@ -35,6 +49,63 @@ const credentialsSchema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
 });
+
+function looksLikeLegacyAccessSchemaError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes("usuariocondominio") ||
+    message.includes("acessos") ||
+    message.includes("relation") ||
+    message.includes("table") ||
+    message.includes("column") ||
+    message.includes("does not exist") ||
+    message.includes("unknown field")
+  );
+}
+
+async function findUserForAuth(where: AuthLookup) {
+  try {
+    return await prisma.usuario.findUnique({
+      where,
+      include: {
+        acessos: {
+          select: { condominioId: true },
+          orderBy: { criadoEm: "asc" },
+        },
+      },
+    });
+  } catch (error) {
+    if (!looksLikeLegacyAccessSchemaError(error)) {
+      throw error;
+    }
+
+    const legacyUser = await prisma.usuario.findUnique({
+      where,
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        senhaHash: true,
+        role: true,
+        condominioId: true,
+      },
+    });
+
+    if (!legacyUser) return null;
+
+    console.warn(
+      "[auth] Falling back to legacy user lookup because UsuarioCondominio is unavailable.",
+    );
+
+    return {
+      ...legacyUser,
+      acessos: [],
+    } satisfies AuthUserRecord;
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
@@ -59,15 +130,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!parsed.success) return null;
 
         const { email, password } = parsed.data;
-        const user = await prisma.usuario.findUnique({
-          where: { email },
-          include: {
-            acessos: {
-              select: { condominioId: true },
-              orderBy: { criadoEm: "asc" },
-            },
-          },
-        });
+        const user = await findUserForAuth({ email });
         if (!user) return null;
 
         const ok = await bcrypt.compare(password, user.senhaHash);
@@ -110,15 +173,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.condominioId = t.condominioId;
 
         if (t.role === "SINDICO" && t.id) {
-          const dbUser = await prisma.usuario.findUnique({
-            where: { id: String(t.id) },
-            include: {
-              acessos: {
-                select: { condominioId: true },
-                orderBy: { criadoEm: "asc" },
-              },
-            },
-          });
+          const dbUser = await findUserForAuth({ id: String(t.id) });
 
           if (dbUser) {
             const condominioIds = mergeCondominioIds(
