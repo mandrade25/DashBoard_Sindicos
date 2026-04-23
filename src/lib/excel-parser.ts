@@ -15,6 +15,8 @@ export interface ParseResult {
   erros: string[];
 }
 
+const MAX_IMPORT_ROWS = 10000;
+
 /**
  * Parser de planilha .xls/.xlsx no formato MiniMerX:
  *   Coluna A: Unidade (nome do condomínio)
@@ -31,6 +33,15 @@ export function parseExcel(buffer: Buffer): ParseResult {
     raw: true,
     defval: null,
   });
+
+  if (rows.length > MAX_IMPORT_ROWS) {
+    return {
+      vendas: [],
+      erros: [
+        `Planilha excede o limite de ${MAX_IMPORT_ROWS} linhas permitidas para importacao.`,
+      ],
+    };
+  }
 
   const vendas: VendaImportada[] = [];
   const erros: string[] = [];

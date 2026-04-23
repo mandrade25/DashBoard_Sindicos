@@ -9,8 +9,9 @@ export const metadata = { title: "Histórico — MiniMerX" };
 export default async function HistoricoPage({
   searchParams,
 }: {
-  searchParams?: { condominioId?: string };
+  searchParams?: Promise<{ condominioId?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const session = await auth();
   if (!session?.user) redirect("/login");
 
@@ -32,8 +33,8 @@ export default async function HistoricoPage({
 
   const selectedCondominioId =
     isSindico && condominios.length > 0
-      ? condominios.some((item) => item.id === searchParams?.condominioId)
-        ? searchParams?.condominioId ?? null
+      ? condominios.some((item) => item.id === resolvedSearchParams?.condominioId)
+        ? resolvedSearchParams?.condominioId ?? null
         : session.user.condominioId ?? condominios[0]?.id ?? null
       : null;
 

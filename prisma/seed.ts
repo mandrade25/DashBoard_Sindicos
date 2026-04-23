@@ -4,8 +4,16 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = "admin@minimerx.com.br";
-  const senhaHash = await bcrypt.hash("MiniMerX@2026", 12);
+  const email = process.env.ADMIN_INITIAL_EMAIL?.trim() || "admin@minimerx.com.br";
+  const senha = process.env.ADMIN_INITIAL_PASSWORD?.trim();
+
+  if (!senha || senha.length < 12) {
+    throw new Error(
+      "Defina ADMIN_INITIAL_PASSWORD com pelo menos 12 caracteres antes de rodar o seed.",
+    );
+  }
+
+  const senhaHash = await bcrypt.hash(senha, 12);
 
   await prisma.usuario.upsert({
     where: { email },
@@ -19,7 +27,7 @@ async function main() {
     },
   });
 
-  console.log(`Seed concluído. Admin: ${email} / senha: MiniMerX@2026`);
+  console.log(`Seed concluido. Admin bootstrap atualizado para ${email}.`);
 }
 
 main()

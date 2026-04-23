@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
 export default async function NotificacoesPage({
   searchParams,
 }: {
-  searchParams?: { condominioId?: string };
+  searchParams?: Promise<{ condominioId?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const session = await auth();
 
   if (!session?.user) {
@@ -34,8 +35,8 @@ export default async function NotificacoesPage({
   });
 
   const selectedCondominioId =
-    condominios.some((item) => item.id === searchParams?.condominioId)
-      ? searchParams?.condominioId ?? null
+    condominios.some((item) => item.id === resolvedSearchParams?.condominioId)
+      ? resolvedSearchParams?.condominioId ?? null
       : session.user.condominioId ?? condominios[0]?.id ?? null;
 
   if (!selectedCondominioId) {

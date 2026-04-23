@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getCurrentSessionVersion } from "@/lib/session-version";
 
 const PUBLIC_PATHS = ["/login"];
 
@@ -42,6 +43,14 @@ export default async function middleware(req: NextRequest) {
   }
 
   const role = token.role;
+  const tokenSessionVersion =
+    typeof token.sessionVersion === "string" ? token.sessionVersion : null;
+
+  if (tokenSessionVersion !== getCurrentSessionVersion()) {
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
 
   if (pathname.startsWith("/admin") && role !== "ADMIN") {
     return NextResponse.redirect(new URL("/dashboard", req.url));
@@ -60,6 +69,7 @@ export default async function middleware(req: NextRequest) {
 }
 
 export const config = {
+  runtime: "nodejs",
   matcher: [
     "/((?!api/auth|_next/static|_next/image|favicon.ico|logo-modelo1.svg|logo-modelo2.svg).*)",
   ],

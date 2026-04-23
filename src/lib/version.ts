@@ -1,1 +1,4 @@
-export const APP_VERSION = "1.1.3";
+const FALLBACK_APP_VERSION = "0.0.0";
+
+export const APP_VERSION =
+  process.env.NEXT_PUBLIC_APP_VERSION?.trim() || FALLBACK_APP_VERSION;

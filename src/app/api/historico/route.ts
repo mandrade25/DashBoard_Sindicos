@@ -1,30 +1,45 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { assertAcessoCondominio } from "@/lib/dashboard-queries";
 import { prisma } from "@/lib/prisma";
-import { competenciaLabel, competenciasRange } from "@/lib/competencia";
+import { competenciaLabel } from "@/lib/competencia";
 
 export async function GET(req: Request) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Nao autenticado." }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const condominioIdParam = searchParams.get("condominioId");
+  const requestedCondominioId =
+    condominioIdParam ??
+    (session.user.role === "SINDICO" ? session.user.condominioId ?? undefined : undefined);
 
-  // SINDICO só pode ver o próprio condomínio
-  const condominioId =
-    session.user.role === "SINDICO"
-      ? (session.user.condominioId ?? undefined)
-      : (condominioIdParam ?? undefined);
-
-  if (session.user.role === "SINDICO" && !condominioId) {
-    return NextResponse.json({ error: "Síndico sem condomínio." }, { status: 422 });
+  if (session.user.role === "SINDICO" && !requestedCondominioId) {
+    return NextResponse.json({ error: "Sindico sem condominio." }, { status: 422 });
   }
 
-  // Buscar comprovantes com seus envios
+  if (requestedCondominioId) {
+    const autorizado = await assertAcessoCondominio(
+      session.user.role,
+      session.user.condominioIds ?? [],
+      requestedCondominioId,
+    );
+    if (!autorizado) {
+      return NextResponse.json({ error: "Proibido." }, { status: 403 });
+    }
+
+    const condominio = await prisma.condominio.findUnique({
+      where: { id: requestedCondominioId },
+      select: { id: true },
+    });
+    if (!condominio) {
+      return NextResponse.json({ error: "Condominio nao encontrado." }, { status: 404 });
+    }
+  }
+
   const comprovantes = await prisma.comprovante.findMany({
     where: {
-      ...(condominioId ? { condominioId } : {}),
-      // SINDICO só vê comprovantes marcados como visível
+      ...(requestedCondominioId ? { condominioId: requestedCondominioId } : {}),
       ...(session.user.role === "SINDICO" ? { visivelSindico: true } : {}),
     },
     orderBy: [{ competencia: "desc" }, { criadoEm: "desc" }],
@@ -38,7 +53,6 @@ export async function GET(req: Request) {
     },
   });
 
-  // Agrupar por (condominioId, competencia) — pegar o mais recente de cada grupo
   const seen = new Set<string>();
   const result = [];
 

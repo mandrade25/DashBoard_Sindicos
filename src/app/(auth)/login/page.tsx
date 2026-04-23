@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { logoutAction } from "@/app/actions/logout";
@@ -7,16 +8,17 @@ import { Button } from "@/components/ui/button";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: { callbackUrl?: string; error?: string };
+  searchParams?: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
   const session = await auth();
-  const callbackUrl = searchParams?.callbackUrl || "/dashboard";
+  const callbackUrl = resolvedSearchParams?.callbackUrl || "/dashboard";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-[#1E2A5A] px-4">
       <div className="w-full max-w-[420px] rounded-2xl bg-white p-10 shadow-2xl max-sm:p-6">
         <div className="mb-8 flex justify-center">
-          <img
+          <Image
             src="/logo-modelo1.svg"
             alt="MiniMerX Market by LAVAX"
             width={200}

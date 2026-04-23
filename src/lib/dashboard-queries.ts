@@ -71,6 +71,12 @@ export async function getResumo(condominioId: string) {
 }
 
 export async function getVendas(condominioId: string, period: "week" | "month" | "year") {
+  const condominio = await prisma.condominio.findUnique({
+    where: { id: condominioId },
+    select: { id: true },
+  });
+  if (!condominio) return null;
+
   const now = new Date();
   const from =
     period === "week"

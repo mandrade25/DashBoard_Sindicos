@@ -9,10 +9,11 @@ import {
 import { prisma } from "@/lib/prisma";
 
 interface Params {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function PUT(req: Request, { params }: Params) {
+  const { id } = await params;
   const { searchParams } = new URL(req.url);
   const authResult = await getSindicoCondominioAccess(searchParams.get("condominioId"));
   if ("error" in authResult) {
@@ -21,14 +22,14 @@ export async function PUT(req: Request, { params }: Params) {
 
   const existing = await prisma.emailNotificacao.findFirst({
     where: {
-      id: params.id,
+      id,
       condominioId: authResult.condominioId,
     },
     select: { id: true },
   });
 
   if (!existing) {
-    return NextResponse.json({ error: "E-mail não encontrado." }, { status: 404 });
+    return NextResponse.json({ error: "E-mail nao encontrado." }, { status: 404 });
   }
 
   const body = await req.json().catch(() => null);
@@ -36,7 +37,7 @@ export async function PUT(req: Request, { params }: Params) {
 
   if (!parsed.success) {
     return NextResponse.json(
-      { error: parsed.error.issues[0]?.message ?? "Dados inválidos." },
+      { error: parsed.error.issues[0]?.message ?? "Dados invalidos." },
       { status: 400 },
     );
   }
@@ -58,7 +59,7 @@ export async function PUT(req: Request, { params }: Params) {
       error.code === "P2002"
     ) {
       return NextResponse.json(
-        { error: "Este e-mail já está cadastrado para o condomínio." },
+        { error: "Este e-mail ja esta cadastrado para o condominio." },
         { status: 409 },
       );
     }
@@ -68,6 +69,7 @@ export async function PUT(req: Request, { params }: Params) {
 }
 
 export async function DELETE(req: Request, { params }: Params) {
+  const { id } = await params;
   const { searchParams } = new URL(req.url);
   const authResult = await getSindicoCondominioAccess(searchParams.get("condominioId"));
   if ("error" in authResult) {
@@ -76,14 +78,14 @@ export async function DELETE(req: Request, { params }: Params) {
 
   const existing = await prisma.emailNotificacao.findFirst({
     where: {
-      id: params.id,
+      id,
       condominioId: authResult.condominioId,
     },
     select: { id: true },
   });
 
   if (!existing) {
-    return NextResponse.json({ error: "E-mail não encontrado." }, { status: 404 });
+    return NextResponse.json({ error: "E-mail nao encontrado." }, { status: 404 });
   }
 
   await prisma.emailNotificacao.delete({ where: { id: existing.id } });

@@ -9,12 +9,13 @@ import { nextMonthStart } from "@/lib/competencia";
 
 const VALOR_TOLERANCIA = 0.02;
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  if (!session?.user) return NextResponse.json({ error: "Nao autenticado." }, { status: 401 });
 
+  const { id } = await params;
   const comp = await prisma.comprovante.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: {
       condominio: { select: { nome: true, percentualRepasse: true } },
       versaoAnterior: { select: { id: true, nomeArquivo: true, criadoEm: true, status: true } },
@@ -26,7 +27,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     },
   });
 
-  if (!comp) return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
+  if (!comp) return NextResponse.json({ error: "Nao encontrado." }, { status: 404 });
 
   if (session.user.role === "SINDICO" && session.user.condominioId !== comp.condominioId) {
     return NextResponse.json({ error: "Proibido." }, { status: 403 });
@@ -35,21 +36,24 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   return NextResponse.json(comp);
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (session?.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Proibido." }, { status: 403 });
   }
 
+  const { id } = await params;
   const comp = await prisma.comprovante.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { condominio: { select: { nome: true, percentualRepasse: true } } },
   });
-  if (!comp) return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
-  if (comp.status === "CANCELADO") return NextResponse.json({ error: "Não é possível editar comprovante cancelado." }, { status: 409 });
+  if (!comp) return NextResponse.json({ error: "Nao encontrado." }, { status: 404 });
+  if (comp.status === "CANCELADO") {
+    return NextResponse.json({ error: "Nao e possivel editar comprovante cancelado." }, { status: 409 });
+  }
 
   const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ error: "Body inválido." }, { status: 400 });
+  if (!body) return NextResponse.json({ error: "Body invalido." }, { status: 400 });
 
   const { valorRepasse, dataPagamento, formaPagamento, observacao, visivelSindico, confirmarDivergencia } =
     body as Record<string, unknown>;
@@ -59,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     valorRepasse !== undefined ? parseFloat(String(valorRepasse)) : Number(comp.valorRepasse);
 
   if (Number.isNaN(valorRepasseNumber) || valorRepasseNumber <= 0) {
-    return NextResponse.json({ error: "Valor de repasse invÃ¡lido." }, { status: 400 });
+    return NextResponse.json({ error: "Valor de repasse invalido." }, { status: 400 });
   }
 
   const competenciaStart = new Date(`${comp.competencia}-01`);
@@ -79,7 +83,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (temDivergencia && confirmarDivergencia !== true) {
     return NextResponse.json(
       {
-        error: "O valor informado difere do repasse calculado para a competÃªncia.",
+        error: "O valor informado difere do repasse calculado para a competencia.",
         requiresConfirmation: true,
         valorInformado: valorRepasseNumber,
         repasseEsperado,
@@ -90,7 +94,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   await prisma.comprovante.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       ...(valorRepasse !== undefined ? { valorRepasse: valorRepasseNumber } : {}),
       ...(dataPagamento ? { dataPagamento: new Date(String(dataPagamento)) } : {}),
@@ -106,7 +110,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     entidadeId: comp.id,
     usuarioId: session.user.id,
     usuarioRole: session.user.role,
-    descricao: `Dados do comprovante atualizados — ${comp.condominio.nome} / ${comp.competencia}`,
+    descricao: `Dados do comprovante atualizados - ${comp.condominio.nome} / ${comp.competencia}`,
     ip: getIp(req),
   });
 
@@ -119,24 +123,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   });
 }
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (session?.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Proibido." }, { status: 403 });
   }
 
+  const { id } = await params;
   const anterior = await prisma.comprovante.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { condominio: { select: { nome: true } } },
   });
 
-  if (!anterior) return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
+  if (!anterior) return NextResponse.json({ error: "Nao encontrado." }, { status: 404 });
   if (anterior.status === "CANCELADO") {
-    return NextResponse.json({ error: "Não é possível substituir comprovante cancelado." }, { status: 409 });
+    return NextResponse.json({ error: "Nao e possivel substituir comprovante cancelado." }, { status: 409 });
   }
 
   const formData = await req.formData().catch(() => null);
-  if (!formData) return NextResponse.json({ error: "FormData inválido." }, { status: 400 });
+  if (!formData) return NextResponse.json({ error: "FormData invalido." }, { status: 400 });
 
   const arquivo = formData.get("arquivo") as File | null;
   const justificativa = (formData.get("justificativa") as string | null)?.trim();
@@ -147,11 +152,11 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   const visivelSindico = formData.get("visivelSindico") === "true";
 
   if (!arquivo || !justificativa || justificativa.length < 10) {
-    return NextResponse.json({ error: "Arquivo e justificativa (mín. 10 caracteres) são obrigatórios." }, { status: 400 });
+    return NextResponse.json({ error: "Arquivo e justificativa (min. 10 caracteres) sao obrigatorios." }, { status: 400 });
   }
 
   if (!ALLOWED_MIME_TYPES.includes(arquivo.type as typeof ALLOWED_MIME_TYPES[number])) {
-    return NextResponse.json({ error: "Formato não permitido. Use PDF, JPG ou PNG." }, { status: 400 });
+    return NextResponse.json({ error: "Formato nao permitido. Use PDF, JPG ou PNG." }, { status: 400 });
   }
 
   if (arquivo.size > MAX_FILE_BYTES) {
@@ -199,7 +204,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     entidadeId: novoComp.id,
     usuarioId: session.user.id,
     usuarioRole: session.user.role,
-    descricao: `Comprovante substituído — ${anterior.condominio.nome} / ${anterior.competencia}. Justificativa: ${justificativa}`,
+    descricao: `Comprovante substituido - ${anterior.condominio.nome} / ${anterior.competencia}. Justificativa: ${justificativa}`,
     payload: { anteriorId: anterior.id, novoId: novoComp.id },
     ip: getIp(req),
   });
@@ -207,22 +212,23 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
   return NextResponse.json({ id: novoComp.id });
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (session?.user.role !== "ADMIN") {
     return NextResponse.json({ error: "Proibido." }, { status: 403 });
   }
 
+  const { id } = await params;
   const comp = await prisma.comprovante.findUnique({
-    where: { id: params.id },
+    where: { id },
     include: { condominio: { select: { nome: true } } },
   });
 
-  if (!comp) return NextResponse.json({ error: "Não encontrado." }, { status: 404 });
-  if (comp.status === "CANCELADO") return NextResponse.json({ error: "Já cancelado." }, { status: 409 });
+  if (!comp) return NextResponse.json({ error: "Nao encontrado." }, { status: 404 });
+  if (comp.status === "CANCELADO") return NextResponse.json({ error: "Ja cancelado." }, { status: 409 });
 
   if (comp.status === "ANEXADO") {
-    await prisma.comprovante.update({ where: { id: params.id }, data: { status: "CANCELADO" } });
+    await prisma.comprovante.update({ where: { id }, data: { status: "CANCELADO" } });
 
     await logAudit({
       tipo: "COMPROVANTE_CANCELADO",
@@ -230,7 +236,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       entidadeId: comp.id,
       usuarioId: session.user.id,
       usuarioRole: session.user.role,
-      descricao: `Comprovante excluído (ANEXADO) — ${comp.condominio.nome} / ${comp.competencia}`,
+      descricao: `Comprovante excluido (ANEXADO) - ${comp.condominio.nome} / ${comp.competencia}`,
       ip: getIp(req),
     });
 
@@ -241,10 +247,10 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
   const justificativa = (body?.justificativa as string | undefined)?.trim();
 
   if (!justificativa || justificativa.length < 10) {
-    return NextResponse.json({ error: "Justificativa obrigatória (mín. 10 caracteres)." }, { status: 400 });
+    return NextResponse.json({ error: "Justificativa obrigatoria (min. 10 caracteres)." }, { status: 400 });
   }
 
-  await prisma.comprovante.update({ where: { id: params.id }, data: { status: "CANCELADO", justificativa } });
+  await prisma.comprovante.update({ where: { id }, data: { status: "CANCELADO", justificativa } });
 
   await logAudit({
     tipo: "COMPROVANTE_CANCELADO",
@@ -252,7 +258,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     entidadeId: comp.id,
     usuarioId: session.user.id,
     usuarioRole: session.user.role,
-    descricao: `Comprovante cancelado — ${comp.condominio.nome} / ${comp.competencia}. Justificativa: ${justificativa}`,
+    descricao: `Comprovante cancelado - ${comp.condominio.nome} / ${comp.competencia}. Justificativa: ${justificativa}`,
     ip: getIp(req),
   });
 
