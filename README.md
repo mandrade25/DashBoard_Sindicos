@@ -222,6 +222,16 @@ Antes de aplicar em servidor, confirme que estes caminhos existem:
 - `/etc/letsencrypt/live/minimerx.com.br/fullchain.pem`
 - `/etc/letsencrypt/live/minimerx.com.br/privkey.pem`
 
+## Deploy EasyPanel / Nixpacks
+
+Para EasyPanel e outras plataformas baseadas em Nixpacks:
+
+- o `install` usa `npm ci --include=dev`, porque o build precisa de `prisma`, `next` e outras dependencias de desenvolvimento
+- mantenha `AUTH_SECRET`, `NEXTAUTH_SECRET`, `AUTH_URL` e similares como variaveis de runtime, nao como build args
+- warnings de `SecretsUsedInArgOrEnv` normalmente indicam configuracao da plataforma, nao do codigo da aplicacao
+
+Se `NODE_ENV=production` for definido cedo demais na fase de build, o `npm ci` pode omitir `devDependencies` e quebrar o `postinstall` do Prisma.
+
 ## Seguranca operacional
 
 Checklist minimo antes de publicar:
